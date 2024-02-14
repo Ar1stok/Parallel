@@ -4,8 +4,6 @@
 
 #define arr_elem 10000000
 
-#define d_double
-
 #ifdef d_double
 using nspace = double;
 #else
