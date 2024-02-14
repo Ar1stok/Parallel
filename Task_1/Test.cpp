@@ -1,6 +1,5 @@
 #include <iostream>
 #include <cmath>
-#include <chrono>
 
 #define arr_elem 10000000
 
