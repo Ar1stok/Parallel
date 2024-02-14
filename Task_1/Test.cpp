@@ -17,8 +17,6 @@ const nspace pi = std::acos(-1);
 
 int main(int argc, char const* argv[])
 {
-    auto start = std::chrono::high_resolution_clock::now();
-
     nspace sum = 0;
     nspace* array;
     array = new nspace[arr_elem];
@@ -34,10 +32,6 @@ int main(int argc, char const* argv[])
     }
 
     std::cout << sum << std::endl;
-
-    auto elapsed = std::chrono::high_resolution_clock::now() - start;
-    long long microseconds = std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count();
-    std::cout << "Result_S: " << microseconds << std::endl;
     
     delete(array);
     

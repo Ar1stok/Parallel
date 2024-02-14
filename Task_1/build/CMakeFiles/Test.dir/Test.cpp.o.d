@@ -1,4 +1,4 @@
-CMakeFiles/Test.dir/Test.cpp.o : /home/p.krylov/Workspace/Task_1/Test.cpp \
+CMakeFiles/Test.dir/Test.cpp.o : /home/p.krylov/Parallel/Task_1/Test.cpp \
   /opt/nvidia/hpc_sdk/Linux_x86_64/23.11/compilers/include/_cplus_macros.h \
   /opt/nvidia/hpc_sdk/Linux_x86_64/23.11/compilers/include/_cplus_preinclude.h \
   /usr/include/c++/11/iostream \
