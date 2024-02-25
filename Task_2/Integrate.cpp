@@ -3,7 +3,7 @@
 #include <chrono>
 #include <omp.h>
 
-#define numThreads 20
+#define numThreads 40
 
 double func(double x) 
 {
@@ -33,7 +33,7 @@ double midpointRectangleIntegration(double a, double b, int n)
     return h * sum;
 }
 
-int main() {
+int main(int argc, char const* argv[]) {
     double a = -4.0; // Нижний предел интегрирования
     double b = 4.0; // Верхний предел интегрирования
     int nsteps = 40000000; // Количество прямоугольников

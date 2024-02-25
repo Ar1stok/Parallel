@@ -3,3 +3,6 @@ Part_1:
 
 Part_2:
 	g++ -fopenmp -o assign_2 Integrate.cpp
+
+Part_3:
+	g++ -fopenmp -o assign_3 Simple_Iteration.cpp
