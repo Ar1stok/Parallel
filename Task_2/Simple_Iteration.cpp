@@ -3,10 +3,12 @@
 #include <chrono>
 #include <omp.h>
 
-#define arr_elem 3
+#define arr_elem 500
 #define numThreads 1
+#define MAX_ITERATIONS 100000
 
-int main(int argc, char const* argv[]) {
+int main(int argc, char const* argv[]) 
+{
 
     double *matrix, *vector_b;
     matrix = new double[arr_elem * arr_elem];
@@ -20,57 +22,37 @@ int main(int argc, char const* argv[]) {
 
     for (int i = 0; i < arr_elem; i++)
     {
-        vector_b[i] = double(i) + 1.0;
+        vector_b[i] = double(arr_elem) + 1.0;
     }
 
-    double t = 0.1;
     double eps = 0.001;
-    double x_new[arr_elem] = {0.0}; // Начальное приближение
 
-    // Выполняем итерации
-    for (int k = 0; k < 20; k++)
+    for (int k = 0; k < MAX_ITERATIONS; ++k) 
     {
+        double error = 0;
+        double temp;
+
         for (int i = 0; i < arr_elem; i++) 
         {
+            temp = x[i];
+            x[i] = 0;
             for (int j = 0; j < arr_elem; j++) 
             {
-                x_new[i] += x[i] - t * (matrix[i * arr_elem + j] * x[i] - vector_b[j]);
+                if (i != j)
+                {
+                    x[i] += matrix[i * arr_elem + j] * x[j];
+                }
             }
+            x[i] = (vector_b[i] - x[i]) / matrix[i * arr_elem + i];
+            error = std::max(error, std::abs(temp - x[i]));
         }
 
-        for (int i = 0; i < arr_elem; i++)
+        if (error < eps)
         {
-            std::cout << x_new[i] << " ";
-        }
-        std::cout << "\n";
-        for (int i = 0; i < arr_elem; i++)
-        {
-            std::cout << x[i] << " ";
-        }
-        std::cout << "\n";
-        // Проверяем условие сходимости
-        double error = 0.0;
-        for (int i = 0; i < arr_elem; i++) 
-        {
-            error += std::abs(x_new[i] - vector_b[i]) / vector_b[i];
-        }
-
-        if (error < eps) 
-        {
+            std::cout << k << "\n";
             break;
         }
-
-        for (int i = 0; i < arr_elem; i++) 
-        {
-            x[i] = x_new[i];
-        }
     }
-
-    std::cout << "Solution: ";
-    for (int i = 0; i < arr_elem; i++) {
-        std::cout << x[i] << " ";
-    }
-    std::cout << std::endl;
 
     return 0;
 }
