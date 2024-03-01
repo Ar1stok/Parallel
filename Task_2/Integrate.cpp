@@ -34,9 +34,9 @@ double midpointRectangleIntegration(double a, double b, int n)
 }
 
 int main(int argc, char const* argv[]) {
-    double a = -4.0; // Нижний предел интегрирования
-    double b = 4.0; // Верхний предел интегрирования
-    int nsteps = 40000000; // Количество прямоугольников
+    double a = -4.0; 
+    double b = 4.0; 
+    int nsteps = 40000000; 
 
     auto begin = std::chrono::steady_clock::now();
     double result = midpointRectangleIntegration(a, b, nsteps);
