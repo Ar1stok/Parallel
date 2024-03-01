@@ -42,7 +42,7 @@ int main(int argc, char const* argv[])
         
         while (true) {
 
-            #pragma omp for
+            #pragma omp for schedule(dynamic, 10)
             for (int i = 0; i < arr_elem; ++i) 
             {
                 double sum = 0;
