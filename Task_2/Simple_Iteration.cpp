@@ -2,17 +2,16 @@
 #include <cmath>
 #include <chrono>
 #include <omp.h>
+#include <memory>
 
 #define arr_elem 5000
 #define numThreads 40
 
 int main(int argc, char const* argv[]) 
 {
-
-    double *matrix, *vector_b, *vector_x;
-    matrix = new double[arr_elem * arr_elem];
-    vector_b = new double[arr_elem];
-    vector_x = new double[arr_elem];
+    std::shared_ptr<double[]> matrix(new double[arr_elem * arr_elem]);
+    std::shared_ptr<double[]> vector_x(new double[arr_elem]);
+    std::shared_ptr<double[]> vector_b(new double[arr_elem]);
 
     double eps = 0.00001;
     double t = 0.00001;
@@ -72,6 +71,5 @@ int main(int argc, char const* argv[])
 
     std::cout << "\n The time: " << elapsed_ms.count() << " ms\n";
 
-    delete (matrix, vector_b, vector_x);
     return 0;
 }

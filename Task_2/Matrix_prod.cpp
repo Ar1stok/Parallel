@@ -2,16 +2,16 @@
 #include <cmath>
 #include <chrono>
 #include <omp.h>
+#include <memory>
 
 #define arr_elem 20000
 #define numThreads 16
 
 int main(int argc, char const* argv[])
 {
-    double *matrix, *vector, *answer;
-    matrix = new double[arr_elem * arr_elem];
-    vector = new double[arr_elem];
-    answer = new double[arr_elem];
+    std::shared_ptr<double[]> matrix(new double[arr_elem * arr_elem]);
+    std::shared_ptr<double[]> vector(new double[arr_elem]);
+    std::shared_ptr<double[]> answer(new double[arr_elem]);
 
     auto begin = std::chrono::steady_clock::now();
     #pragma omp parallel num_threads(numThreads)
@@ -41,8 +41,6 @@ int main(int argc, char const* argv[])
     auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);
 
     std::cout << "The time: " << elapsed_ms.count() << " ms\n";
-    
-    delete(matrix, vector, answer);
 
     return 0;
 }
