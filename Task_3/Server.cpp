@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <thread>
 #include <list>
 #include <mutex>
@@ -29,12 +30,12 @@ T fun_pow(T arg)
 }
 
 template <typename T>
-class TaskServer {
+class Server {
 public:
     void start() 
     {
         stoken_ = false;
-        server_thread_ = std::thread(&TaskServer::server_thread, this);
+        server_thread_ = std::thread(&Server::server_thread, this);
     }
 
     void stop() 
@@ -58,7 +59,7 @@ public:
     T request_result(size_t id) 
     {
         std::unique_lock<std::mutex> lock(mutex_);
-        while (results_.find(id) == results_.end()) {} 
+        while (results_.find(id) == results_.end()) {} // Ожидание результата
         T result = results_[id];
         results_.erase(id);
         return result;
@@ -72,7 +73,7 @@ private:
     std::queue<std::pair<size_t, std::future<T>>> tasks_;
     std::unordered_map<size_t, T> results_;
 
-    void server_thread()
+    void server_thread() 
     {
         while (true) 
         {
@@ -91,13 +92,13 @@ private:
     }
 };
 
-// Класс клиента задач
+
 template <typename T>
-class TaskClient {
+class Client {
 public:
-    void run_client(TaskServer<T>& server, std::function<T(T)> task) 
+    void run_client(Server<T>& server, std::function<T(T)> task) 
     {
-        for (int i = 0; i < 10; ++i)
+        for (int i = 0; i < 10000; ++i)
         {
             int id = server.add_task(task);
             task_ids_.push_back(id);
@@ -105,7 +106,7 @@ public:
         
     }
 
-    std::vector<T> client_to_result(TaskServer<T>& server) 
+    std::vector<T> client_to_result(Server<T>& server) 
     {
         std::vector<T> results;
         for (int id : task_ids_) 
@@ -122,42 +123,63 @@ private:
 
 
 int main() {
-    TaskServer<double> server; 
+    Server<double> server; 
     server.start();
 
-    TaskClient<double> client1;
-    TaskClient<double> client2;
-    TaskClient<double> client3;
-    
-    client1.run_client(server, fun_sin<double>);
-    client2.run_client(server, fun_sqrt<double>);
-    client3.run_client(server, fun_pow<double>);
+    auto begin = std::chrono::steady_clock::now();
 
-    std::vector<double> ans_1;
-    std::vector<double> ans_2;
-    std::vector<double> ans_3;
-    
-    std::thread t1 ([&]() {ans_1 = client1.client_to_result(server);});
-    std::thread t2 ([&]() {ans_2 = client2.client_to_result(server);});
-    std::thread t3 ([&]() {ans_3 = client3.client_to_result(server);});
+    Client<double> client1;
+    Client<double> client2;
+    Client<double> client3;
+
+    std::thread t1 ([&]() { client1.run_client(server, fun_sin<double>); });
+    std::thread t2 ([&]() { client2.run_client(server, fun_sqrt<double>); });
+    std::thread t3 ([&]() { client3.run_client(server, fun_pow<double>); });
+
     t1.join();
     t2.join();
     t3.join();
 
-    std::cout << "ans_1: ";
-    for (double n : ans_1)
-        std::cout << n << ", ";
-    std::cout << "\n";
+    std::vector<double> ans_1;
+    std::vector<double> ans_2;
+    std::vector<double> ans_3; 
+    
+    std::thread t4 ([&]() { ans_1 = client1.client_to_result(server); });
+    std::thread t5 ([&]() { ans_2 = client2.client_to_result(server); });
+    std::thread t6 ([&]() { ans_3 = client3.client_to_result(server); });
+    
+    t4.join();
+    t5.join();
+    t6.join();
 
-    std::cout << "ans_2: ";
-    for (double n : ans_2)
-        std::cout << n << ", ";
-    std::cout << "\n";
+    auto end = std::chrono::steady_clock::now();
+    auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);
 
-    std::cout << "ans_3: ";
-    for (double n : ans_3)
-        std::cout << n << ", ";
-    std::cout << "\n";
+    std::ofstream file;
+	file.open("answers.txt");
+    
+    file << "The time: " << elapsed_ms.count() << " ms\n" << "sin_ans:" << std::endl;
+	for (double n : ans_1)
+    {
+        file << n << "\n";
+    }
+    file << std::endl;
+
+    file << "sqrt_ans:" << std::endl;
+	for (double n : ans_2)
+    {
+        file << n << "\n";
+    }
+    file << std::endl;
+
+    file << "pow_ans:" << std::endl;
+	for (double n : ans_3)
+    {
+        file << n << "\n";
+    }
+    file << std::endl;
+
+	file.close(); 
 
     server.stop();
 

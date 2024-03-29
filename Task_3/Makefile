@@ -1,5 +1,7 @@
-matrix:
-	g++ -std=c++20 -o ex Mat_prod.cpp
+compile = g++ -std=c++20 -o
 
-server:
-	g++ -std=c++20 -o server Server.cpp
+part_1:
+	$(compile) ex Mat_prod.cpp
+
+part_2:
+	$(compile) server Server.cpp
