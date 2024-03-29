@@ -39,7 +39,7 @@ public:
     void stop() 
     {
         {
-            std::unique_lock<std::mutex> lock(mutex_);
+            std::lock_guard<std::mutex> lock(mutex_);
             stoken_ = true;
         }
         server_thread_.join();
@@ -47,7 +47,7 @@ public:
 
     size_t add_task(std::function<T(T)> task) 
     {
-        std::unique_lock<std::mutex> lock(mutex_);
+        std::lock_guard<std::mutex> lock(mutex_);
         static std::default_random_engine generator;
         static std::uniform_real_distribution<T> distribution(1.0, 10.0);
         tasks_.push({ ++next_id_, std::async(std::launch::deferred, task, distribution(generator)) });
@@ -56,7 +56,7 @@ public:
 
     T request_result(size_t id) 
     {
-        std::unique_lock<std::mutex> lock(mutex_);
+        std::lock_guard<std::mutex> lock(mutex_);
         while (results_.find(id) == results_.end()) {} // Ожидание результата
         T result = results_[id];
         results_.erase(id);
@@ -75,7 +75,7 @@ private:
     {
         while (true) 
         {
-            std::unique_lock<std::mutex> lock(mutex_);
+            std::lock_guard<std::mutex> lock(mutex_);
             if (tasks_.empty() && stoken_) 
             {
                 break;
@@ -98,8 +98,7 @@ public:
     {
         for (int i = 0; i < 10000; ++i)
         {
-            int id = server.add_task(task);
-            task_ids_.push_back(id);
+            task_ids_.emplace_back(server.add_task(task));
         }
         
     }
@@ -109,8 +108,7 @@ public:
         std::vector<T> results;
         for (int id : task_ids_) 
         {
-            T result = server.request_result(id);
-            results.push_back(result);
+            results.emplace_back(server.request_result(id));
         }
         return results;
     }
