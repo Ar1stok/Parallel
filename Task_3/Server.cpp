@@ -1,12 +1,10 @@
 #include <iostream>
 #include <fstream>
 #include <thread>
-#include <list>
 #include <mutex>
 #include <queue>
 #include <future>
 #include <functional>
-#include <condition_variable>
 #include <random>
 #include <cmath> 
 #include <unordered_map>
