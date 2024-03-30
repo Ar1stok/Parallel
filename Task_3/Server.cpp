@@ -10,21 +10,21 @@
 #include <unordered_map>
 
 template<typename T>
-T fun_sin(T arg) 
+std::pair<T, T> fun_sin(T arg) 
 {
-    return std::sin(arg);
+    return { arg, std::sin(arg) };
 }
 
 template<typename T>
-T fun_sqrt(T arg) 
+std::pair<T, T> fun_sqrt(T arg) 
 {
-    return std::sqrt(arg);
+    return { arg, std::sqrt(arg) };
 }
 
 template<typename T>
-T fun_pow(T arg) 
+std::pair<T, T> fun_pow(T arg) 
 {
-    return std::pow(arg, 2.0);
+    return { arg, std::pow(arg, 2.0) };
 }
 
 template <typename T>
@@ -45,7 +45,7 @@ public:
         server_thread_.join();
     }
 
-    size_t add_task(std::function<T(T)> task) 
+    size_t add_task(std::function<std::pair<T,T>(T)> task) 
     {
         std::lock_guard<std::mutex> lock(mutex_);
         static std::default_random_engine generator;
@@ -54,11 +54,11 @@ public:
         return tasks_.back().first;
     }
 
-    T request_result(size_t id) 
+    std::pair<T, T> request_result(size_t id) 
     {
         std::lock_guard<std::mutex> lock(mutex_);
         while (results_.find(id) == results_.end()) {} // Ожидание результата
-        T result = results_[id];
+        auto result = results_[id];
         results_.erase(id);
         return result;
     }
@@ -68,8 +68,8 @@ private:
     std::thread server_thread_;
     bool stoken_ = false;
     size_t next_id_ = 1;
-    std::queue<std::pair<size_t, std::future<T>>> tasks_;
-    std::unordered_map<size_t, T> results_;
+    std::queue<std::pair<size_t, std::future<std::pair<T,T>>>> tasks_;
+    std::unordered_map<size_t, std::pair<T,T>> results_;
 
     void server_thread() 
     {
@@ -94,18 +94,18 @@ private:
 template <typename T>
 class Client {
 public:
-    void run_client(Server<T>& server, std::function<T(T)> task) 
+    void run_client(Server<T>& server, std::function<std::pair<T,T>(T)> task) 
     {
-        for (int i = 0; i < 10000; ++i)
+        for (int i = 0; i < 5; ++i)
         {
             task_ids_.emplace_back(server.add_task(task));
         }
         
     }
 
-    std::vector<T> client_to_result(Server<T>& server) 
+    std::vector<std::pair<T, T>> client_to_result(Server<T>& server) 
     {
-        std::vector<T> results;
+        std::vector<std::pair<T, T>> results;
         for (int id : task_ids_) 
         {
             results.emplace_back(server.request_result(id));
@@ -136,9 +136,9 @@ int main() {
     t2.join();
     t3.join();
 
-    std::vector<double> ans_1;
-    std::vector<double> ans_2;
-    std::vector<double> ans_3; 
+    std::vector<std::pair<double, double>> ans_1;
+    std::vector<std::pair<double, double>> ans_2;
+    std::vector<std::pair<double, double>> ans_3; 
     
     std::thread t4 ([&]() { ans_1 = client1.client_to_result(server); });
     std::thread t5 ([&]() { ans_2 = client2.client_to_result(server); });
@@ -153,33 +153,27 @@ int main() {
     auto end = std::chrono::steady_clock::now();
     auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);
 
+    std::cout << "The time: " << elapsed_ms.count() << " ms" << std::endl;
+    
     std::ofstream file;
-	file.open("answers.txt");
+	file.open("answer.txt");
     
-    file << "The time: " << elapsed_ms.count() << " ms\n" << "sin_ans:" << std::endl;
-	for (double n : ans_1)
+	for (const auto& pair : ans_1)
     {
-        file << n << "\n";
+        file << "sin " << pair.first << " " << pair.second << std::endl;
     }
-    file << std::endl;
 
-    file << "sqrt_ans:" << std::endl;
-	for (double n : ans_2)
+	for (const auto& pair : ans_2)
     {
-        file << n << "\n";
+        file << "sqrt " << pair.first << " " << pair.second << std::endl;
     }
-    file << std::endl;
 
-    file << "pow_ans:" << std::endl;
-	for (double n : ans_3)
+	for (const auto& pair : ans_3)
     {
-        file << n << "\n";
+        file << "pow " << pair.first << " " << pair.second << std::endl;
     }
-    file << std::endl;
 
-	file.close(); 
-
-    
+    file.close(); 
 
     return 0;
 }

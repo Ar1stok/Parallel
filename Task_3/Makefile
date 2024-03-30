@@ -5,3 +5,6 @@ part_1:
 
 part_2:
 	$(compile) server Server.cpp
+
+checking:
+	$(compile) check Check.cpp 
