@@ -49,7 +49,7 @@ def processing(img_list: list, start: int, end: int) -> list:
 def Parser():
     parser = argparse.ArgumentParser(description='Video options')
     parser.add_argument('--video_path', type=str, default="Dance.mp4", help='Video path')
-    parser.add_argument('--mode', type=int, default=0, help='Execution mode 0 - single-thr/ 1 - multi-thr')
+    parser.add_argument('--num_thread', type=int, default=1, help='Number of threads (no more than 10)')
     parser.add_argument('--out', type=str, default="Result.avi", help='Output file name')
     return parser.parse_args()
 
@@ -61,26 +61,28 @@ if __name__ == "__main__":
     video = Video(args.video_path, args.out)
     
     video.get_frames()
+    
+    threads = []
+    if (args.num_thread > 10 or args.num_thread < 1):
+        logging.warning("Num_thread set by default")
+        num_thread = 1
+    else: num_thread = args.num_thread
+    frames_per_thread = len(video.frames_list) // num_thread
+    print(frames_per_thread)
+    
     start = time.perf_counter()
-    
-    if args.mode == 0:
-        thread = threading.Thread(target=processing, args=(video.frames_list, 0, len(video.frames_list)))
-        thread.start()
-        thread.join()
-    
-    else:
-        thread0 = threading.Thread(target=processing, args=(video.frames_list, 0, 100))
-        thread1 = threading.Thread(target=processing, args=(video.frames_list, 101, 200))
-        thread2 = threading.Thread(target=processing, args=(video.frames_list, 201, len(video.frames_list)))
+    for i in range(num_thread):
+        if i == (num_thread - 1):
+            thr = threading.Thread(target=processing, args=(video.frames_list, (frames_per_thread * i), len(video.frames_list)))
+            thr.start()
+            threads.append(thr)
+        else:
+            thr = threading.Thread(target=processing, args=(video.frames_list, (frames_per_thread * i), (frames_per_thread * (i + 1))))
+            thr.start()
+            threads.append(thr)
         
-        thread0.start()
-        thread1.start()
-        thread2.start()
-        
-        thread0.join()
-        thread1.join()
-        thread2.join()
-    
+    for thr in threads:
+        thr.join()
     end = time.perf_counter() - start
     logging.info(f"Processing is ended\nTime: {end:0.3f} second")
     
