@@ -1,10 +1,12 @@
 compile = g++ -std=c++20 -o
 
-part_1:
-	$(compile) ex Mat_prod.cpp
+matprod: Mat_prod.cpp
+	$(compile) matprod Mat_prod.cpp
 
-part_2:
+part_2: server check
+
+server: Server.cpp
 	$(compile) server Server.cpp
 
-checking:
-	$(compile) check Check.cpp 
+check: Check.cpp
+	$(compile) check Check.cpp
