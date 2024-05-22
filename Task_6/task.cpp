@@ -166,7 +166,6 @@ int main(int argc, char *argv[])
             error = fmax(error, fabs(at(Fnew, x, y) - at(F, x, y)));
         }
     }
-    #pragma acc update self(F[0:size_sq])
     #pragma acc update self(error)
     #pragma acc exit data delete (Fnew[:size_sq]) copyout(F[:size_sq], error)
 
