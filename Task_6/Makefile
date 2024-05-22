@@ -1,11 +1,12 @@
 GPU = -acc=gpu -D OPENACC__ -D NVPROF_
-MULT = -acc=multicore -Mconcur=allcores
+MULT = -acc=multicore 
+CORE = -acc=host
 PGC = pgc++ -fast -O2
 
 all: core mult gpu
 
 core: task.cpp
-	$(PGC) -o core task.cpp
+	$(PGC) $(CORE) -o core task.cpp
 
 mult: task.cpp
 	$(PGC) $(MULT) -o mult task.cpp

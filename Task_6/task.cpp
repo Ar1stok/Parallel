@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <cstring>
 #include <sstream>
 #include <math.h>
@@ -19,7 +20,7 @@ constexpr int LEFT_UP = 10;
 constexpr int LEFT_DOWN = 20;
 constexpr int RIGHT_UP = 20;
 constexpr int RIGHT_DOWN = 30;
-constexpr int ITERS_BETWEEN_UPDATE = 10;
+constexpr int ITERS_BETWEEN_UPDATE = 70;
 
 void initArrays(double *mainArr, double *subArr, int &size)
 {
@@ -40,6 +41,27 @@ void initArrays(double *mainArr, double *subArr, int &size)
     }
     std::memcpy(subArr, mainArr, sizeof(double) * size_sq);
 }
+
+void saveMatrix(double *mainArr, int size, const std::string& filename) {
+    std::ofstream outputFile(filename);
+    if (!outputFile.is_open()) 
+    {
+        std::cerr << "Unable to open file " << filename << " for writing." << std::endl;
+        return;
+    }
+
+    for (int i = 0; i < size; ++i) 
+    {
+        for (int j = 0; j < size; ++j) 
+        {
+            outputFile << at(mainArr, i, j) << ' ';
+        }
+        outputFile << std::endl;
+    }
+
+    outputFile.close();
+}
+
 
 int main(int argc, char *argv[])
 {
@@ -152,14 +174,7 @@ int main(int argc, char *argv[])
     std::cout << "Time: " << end - start << " s" << std::endl;
     std::cout << "Iterations: " << iteration << std::endl;
     std::cout << "Error: " << error << std::endl;
-    for (int x = 0; x < size && showResult; x++)
-    {
-        for (int y = 0; y < size; y++)
-        {
-            std::cout << at(F, x, y) << ' ';
-        }
-        std::cout << std::endl;
-    }
+    if (showResult) saveMatrix(F, size, "matrix.txt");
 
     delete[] F;
     delete[] Fnew;
