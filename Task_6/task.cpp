@@ -2,6 +2,7 @@
 #include <fstream>
 #include <cstring>
 #include <sstream>
+#include <memory>
 #include <math.h>
 #include <cmath>
 
@@ -12,6 +13,7 @@
 #include </opt/nvidia/hpc_sdk/Linux_x86_64/23.11/cuda/12.3/include/nvtx3/nvToolsExt.h>
 #endif
 #include <omp.h>
+#include <iomanip>
 
 #define at(arr, x, y) (arr[(x) * size + (y)])
 #define size_sq size * size
@@ -22,7 +24,7 @@ constexpr int RIGHT_UP = 20;
 constexpr int RIGHT_DOWN = 30;
 constexpr int ITERS_BETWEEN_UPDATE = 70;
 
-void initArrays(double *mainArr, double *subArr, int &size)
+void initArrays(double* mainArr, double* subArr, int &size)
 {
     std::memset(mainArr, 0, sizeof(double) * size_sq);
 
@@ -39,10 +41,12 @@ void initArrays(double *mainArr, double *subArr, int &size)
         at(mainArr, size - 1, i) = (at(mainArr, size - 1, size - 1) - at(mainArr, size - 1, 0)) / (size - 1) * i + at(mainArr, size - 1, 0);
         at(mainArr, i, size - 1) = (at(mainArr, size - 1, size - 1) - at(mainArr, 0, size - 1)) / (size - 1) * i + at(mainArr, 0, size - 1);
     }
+
     std::memcpy(subArr, mainArr, sizeof(double) * size_sq);
 }
 
-void saveMatrix(double *mainArr, int size, const std::string& filename) {
+void saveMatrix(std::shared_ptr<double []> mainArr, int size, const std::string& filename) 
+{
     std::ofstream outputFile(filename);
     if (!outputFile.is_open()) 
     {
@@ -54,11 +58,10 @@ void saveMatrix(double *mainArr, int size, const std::string& filename) {
     {
         for (int j = 0; j < size; ++j) 
         {
-            outputFile << at(mainArr, i, j) << ' ';
+            outputFile << std::setw(4) << std::fixed << std::setprecision(4) << at(mainArr, i, j) << ' ';
         }
         outputFile << std::endl;
     }
-
     outputFile.close();
 }
 
@@ -97,17 +100,19 @@ int main(int argc, char *argv[])
 
     double start = omp_get_wtime();
 
-    double *F = new double[size_sq];
-    double *Fnew = new double[size_sq];
+    std::shared_ptr<double[]> ArrF(new double[size_sq]);
+    std::shared_ptr<double[]> ArrFnew(new double[size_sq]);
 
-    initArrays(F, Fnew, size);
+    initArrays(ArrF.get(), ArrFnew.get(), size);
+
+    double* F = ArrF.get();
+    double* Fnew = ArrFnew.get();
 
     double error = 0;
     int iteration = 0;
-
     int itersBetweenUpdate = 0;
 
-#pragma acc enter data copyin(Fnew[:size_sq], F[:size_sq], error)
+    #pragma acc enter data copyin(Fnew[:size_sq], F[:size_sq], error)
 
 #ifdef NVPROF_
     nvtxRangePush("MainCycle");
@@ -119,7 +124,7 @@ int main(int argc, char *argv[])
             error = 0;
         }
 
-        #pragma acc parallel loop collapse(2) present(Fnew[:size_sq], F[:size_sq], error) vector_length(128) async
+        #pragma acc parallel loop collapse(2) present(Fnew[:size_sq], F[:size_sq], error) async
         for (int x = 1; x < size - 1; x++)
         {
             for (int y = 1; y < size - 1; y++)
@@ -128,7 +133,9 @@ int main(int argc, char *argv[])
             }
         }
         
-        std::swap(F, Fnew);
+        double *swap = F;
+        F = Fnew;
+        Fnew = swap;
         
 #ifdef OPENACC__
         acc_attach((void **)F);
@@ -136,7 +143,7 @@ int main(int argc, char *argv[])
 #endif
         if (itersBetweenUpdate >= ITERS_BETWEEN_UPDATE && iteration < iterations)
         {
-            #pragma acc parallel loop collapse(2) present(Fnew[:size_sq], F[:size_sq], error) reduction(max:error) vector_length(128) async
+            #pragma acc parallel loop collapse(2) present(Fnew[:size_sq], F[:size_sq], error) reduction(max:error) async
             for (int x = 1; x < size - 1; x++)
             {
                 for (int y = 1; y < size - 1; y++)
@@ -158,7 +165,7 @@ int main(int argc, char *argv[])
     nvtxRangePop();
 #endif
 
-    #pragma acc parallel loop collapse(2) present(Fnew[:size_sq], F[:size_sq], error) reduction(max:error) vector_length(128) async
+    #pragma acc parallel loop collapse(2) present(Fnew[:size_sq], F[:size_sq], error) reduction(max:error) async
     for (int x = 1; x < size - 1; x++)
     {
         for (int y = 1; y < size - 1; y++)
@@ -173,10 +180,7 @@ int main(int argc, char *argv[])
     std::cout << "Time: " << end - start << " s" << std::endl;
     std::cout << "Iterations: " << iteration << std::endl;
     std::cout << "Error: " << error << std::endl;
-    if (showResult) saveMatrix(F, size, "matrix.txt");
-
-    delete[] F;
-    delete[] Fnew;
+    if (showResult) saveMatrix(ArrF, size, "matrix.txt");
 
     return 0;
 }
