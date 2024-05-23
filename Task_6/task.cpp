@@ -1,4 +1,5 @@
 #include <iostream>
+#include <iomanip>
 #include <fstream>
 #include <cstring>
 #include <sstream>
@@ -13,7 +14,7 @@
 #include </opt/nvidia/hpc_sdk/Linux_x86_64/23.11/cuda/12.3/include/nvtx3/nvToolsExt.h>
 #endif
 #include <omp.h>
-#include <iomanip>
+
 
 #define at(arr, x, y) (arr[(x) * size + (y)])
 #define size_sq size * size
