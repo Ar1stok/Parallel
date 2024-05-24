@@ -30,6 +30,7 @@ void initArrays(double* mainArr, double* subArr, int &size, bool& initMean)
 {
     std::memset(mainArr, 0, sizeof(double) * size_sq);
 
+    // Заполнение матрицы средними значениями
     for (int i = 0; i < size_sq && initMean; i++)
     {
         mainArr[i] = (LEFT_UP + LEFT_DOWN + RIGHT_UP + RIGHT_DOWN) / 4;
@@ -52,7 +53,7 @@ void initArrays(double* mainArr, double* subArr, int &size, bool& initMean)
     std::memcpy(subArr, mainArr, sizeof(double) * size_sq);
 }
 
-void saveMatrix(std::shared_ptr<double []> mainArr, int size, const std::string& filename) 
+void saveMatrix(double* mainArr, int size, const std::string& filename) 
 {
     std::ofstream outputFile(filename);
     if (!outputFile.is_open()) 
@@ -132,6 +133,8 @@ int main(int argc, char *argv[])
             error = 0;
         }
 
+        // Распараллеливаем вложенные циклы parallel loop collapse(2)
+        // (present - сообщают компилятору, что данные на устройстве)
         #pragma acc parallel loop collapse(2) present(Fnew[:size_sq], F[:size_sq], error) async
         for (int x = 1; x < size - 1; x++)
         {
@@ -144,13 +147,14 @@ int main(int argc, char *argv[])
         double *swap = F;
         F = Fnew;
         Fnew = swap;
-        
+
 #ifdef OPENACC__
         acc_attach((void **)F);
         acc_attach((void **)Fnew);
 #endif
         if (itersBetweenUpdate >= ITERS_BETWEEN_UPDATE && iteration < iterations)
         {
+            // Вычисление ошибки (Используем редукцию)
             #pragma acc parallel loop collapse(2) present(Fnew[:size_sq], F[:size_sq], error) reduction(max:error) async
             for (int x = 1; x < size - 1; x++)
             {
@@ -173,6 +177,7 @@ int main(int argc, char *argv[])
     nvtxRangePop();
 #endif
 
+    // Последнее вычисление ошибки (Т.к был добавлен itersBetweenUpdate)
     #pragma acc parallel loop collapse(2) present(Fnew[:size_sq], F[:size_sq], error) reduction(max:error) async
     for (int x = 1; x < size - 1; x++)
     {
@@ -188,7 +193,7 @@ int main(int argc, char *argv[])
     std::cout << "Time: " << end - start << " s" << std::endl;
     std::cout << "Iterations: " << iteration << std::endl;
     std::cout << "Error: " << error << std::endl;
-    if (showResult) saveMatrix(ArrF, size, "matrix.txt");
+    if (showResult) saveMatrix(ArrF.get(), size, "matrix.txt");
 
     return 0;
 }
