@@ -6,6 +6,7 @@
 #include <memory>
 #include <math.h>
 #include <cmath>
+#include <boost/program_options.hpp>
 
 #ifdef OPENACC__
 #include <openacc.h>
@@ -14,7 +15,7 @@
 #include </opt/nvidia/hpc_sdk/Linux_x86_64/23.11/cuda/12.3/include/nvtx3/nvToolsExt.h>
 #endif
 #include <omp.h>
-
+namespace po = boost::program_options;
 
 #define at(arr, x, y) (arr[(x) * size + (y)])
 #define size_sq size * size
@@ -25,9 +26,14 @@ constexpr int RIGHT_UP = 20;
 constexpr int RIGHT_DOWN = 30;
 constexpr int ITERS_BETWEEN_UPDATE = 70;
 
-void initArrays(double* mainArr, double* subArr, int &size)
+void initArrays(double* mainArr, double* subArr, int &size, bool& initMean)
 {
     std::memset(mainArr, 0, sizeof(double) * size_sq);
+
+    for (int i = 0; i < size_sq && initMean; i++)
+    {
+        mainArr[i] = (LEFT_UP + LEFT_DOWN + RIGHT_UP + RIGHT_DOWN) / 4;
+    }
 
     at(mainArr, 0, 0) = LEFT_UP;
     at(mainArr, 0, size - 1) = RIGHT_UP;
@@ -69,42 +75,43 @@ void saveMatrix(std::shared_ptr<double []> mainArr, int size, const std::string&
 
 int main(int argc, char *argv[])
 {
+    po::options_description desc("options");
+    desc.add_options()
+        ("eps", po::value<double>()->default_value(1e-6),"Accuracy")
+        ("size", po::value<int>()->default_value(10),"Matrix size")
+        ("iterations", po::value<int>()->default_value(1000000),"Max count of iteration")
+        ("show", po::value<bool>()->default_value(false),"Show ResMatrix")
+        ("init", po::value<bool>()->default_value(false),"Use mean value during init")
+        ("help", "Show all all command")
+    ;
 
-    bool showResult = false;
-    double eps = 1E-6;
-    int iterations = 1E6;
-    int size = 10;
+    po::variables_map vm;
+    po::store(po::parse_command_line(argc, argv, desc), vm);
+    po::notify(vm);
 
-    for(int arg = 0; arg < argc; arg++)
-    {
-        std::stringstream stream;
-        if(strcmp(argv[arg], "-eps") == 0)
-        {
-            stream << argv[arg+1];
-            stream >> eps;
-        }
-        else if(strcmp(argv[arg], "-s") == 0)
-        {
-            stream << argv[arg+1];
-            stream >> size;
-        }
-        else if(strcmp(argv[arg], "-show") == 0)
-        {
-            stream << argv[arg+1];
-            stream >> showResult;
-        }
+    if (vm.count("help")) {
+        std::cout << desc << "\n";
+        return 1;
     }
+
+    double eps = vm["eps"].as<double>();
+    int size = vm["size"].as<int>();
+    int iterations = vm["iterations"].as<int>();
+    bool showResult = vm["show"].as<bool>();
+    bool initMean = vm["init"].as<bool>();
+
     std::cout << "Current settings:" << std::endl;
     std::cout << "\tEPS: " << eps << std::endl;
     std::cout << "\tMax iteration: " << iterations << std::endl;
     std::cout << "\tSize: " << size << 'x' << size << std::endl;
+    std::cout << "\tMean Value: " << initMean << std::endl;
 
     double start = omp_get_wtime();
 
     std::shared_ptr<double[]> ArrF(new double[size_sq]);
     std::shared_ptr<double[]> ArrFnew(new double[size_sq]);
 
-    initArrays(ArrF.get(), ArrFnew.get(), size);
+    initArrays(ArrF.get(), ArrFnew.get(), size, initMean);
 
     double* F = ArrF.get();
     double* Fnew = ArrFnew.get();
