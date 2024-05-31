@@ -132,9 +132,6 @@ int main(int argc, char *argv[])
     #endif
 
     #pragma acc data copy(Fnew[:size_sq], F[:size_sq], inter[:size_sq])
-#ifdef NVPROF_
-        nvtxRangePush("MainCycle");
-#endif
     do
     {
         #pragma acc parallel loop collapse(2) present(Fnew[:size_sq], F[:size_sq]) async
@@ -175,9 +172,6 @@ int main(int argc, char *argv[])
         iteration++;
         itersBetweenUpdate++;
     } while (iteration < iterations && error > eps);
-#ifdef NVPROF_
-        nvtxRangePop();
-#endif
 
 #ifdef CUBLAS
     cublasDestroy(handle);
