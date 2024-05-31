@@ -8,9 +8,6 @@
 #include <cmath>
 #include <boost/program_options.hpp>
 
-#ifdef OPENACC__
-#include <openacc.h>
-#endif
 #ifdef NVPROF_
 #include </opt/nvidia/hpc_sdk/Linux_x86_64/23.11/cuda/12.3/include/nvtx3/nvToolsExt.h>
 #endif
@@ -121,79 +118,95 @@ int main(int argc, char *argv[])
     int iteration = 0;
     int itersBetweenUpdate = 0;
 
-    #pragma acc enter data copyin(Fnew[:size_sq], F[:size_sq], error)
-
-#ifdef NVPROF_
-    nvtxRangePush("MainCycle");
-#endif
-    do
+    #pragma acc data copyin(Fnew[:size_sq], F[:size_sq], error)
     {
-        #pragma acc parallel present(error) async
-        {
-            error = 0;
-        }
-
-        // Распараллеливаем вложенные циклы parallel loop collapse(2)
-        // (present - сообщают компилятору, что данные на устройстве)
-        #pragma acc parallel loop collapse(2) present(Fnew[:size_sq], F[:size_sq], error) async
-        for (int x = 1; x < size - 1; x++)
-        {
-            for (int y = 1; y < size - 1; y++)
-            {
-                at(Fnew, x, y) = 0.25 * (at(F, x + 1, y) + at(F, x - 1, y) + at(F, x, y - 1) + at(F, x, y + 1));
-            }
-        }
-        
-        double *swap = F;
-        F = Fnew;
-        Fnew = swap;
-
-#ifdef OPENACC__
-        acc_attach((void **)F);
-        acc_attach((void **)Fnew);
+#ifdef NVPROF_
+        nvtxRangePush("MainCycle");
 #endif
-        if (itersBetweenUpdate >= ITERS_BETWEEN_UPDATE && iteration < iterations)
+        do
         {
-            // Вычисление ошибки (Используем редукцию)
-            #pragma acc parallel loop collapse(2) present(Fnew[:size_sq], F[:size_sq], error) reduction(max:error) async
+            #pragma acc parallel present(error) async
+            {
+                error = 0;
+            }
+
+            // Распараллеливаем вложенные циклы parallel loop collapse(2)
+            // (present - сообщают компилятору, что данные на устройстве)
+            #pragma acc parallel loop collapse(2) present(Fnew[:size_sq], F[:size_sq], error) async
             for (int x = 1; x < size - 1; x++)
             {
                 for (int y = 1; y < size - 1; y++)
                 {
-                    error = fmax(error, fabs(at(Fnew, x, y) - at(F, x, y)));
+                    at(Fnew, x, y) = 0.25 * (at(F, x + 1, y) + at(F, x - 1, y) + at(F, x, y - 1) + at(F, x, y + 1));
                 }
             }
-            #pragma acc update self(error) wait
-            itersBetweenUpdate = -1;
-        }
-        else
-        {
-            error = 1;
-        }
-        iteration++;
-        itersBetweenUpdate++;
-    } while (iteration < iterations && error > eps);
+            
+            double *swap = F;
+            F = Fnew;
+            Fnew = swap;
+
+            if (itersBetweenUpdate >= ITERS_BETWEEN_UPDATE && iteration < iterations)
+            {
+                // Вычисление ошибки (Используем редукцию)
+                #pragma acc parallel loop collapse(2) present(Fnew[:size_sq], F[:size_sq], error) reduction(max:error) async
+                for (int x = 1; x < size - 1; x++)
+                {
+                    for (int y = 1; y < size - 1; y++)
+                    {
+                        error = fmax(error, fabs(at(Fnew, x, y) - at(F, x, y)));
+                    }
+                }
+                #pragma acc update self(error) wait
+                itersBetweenUpdate = -1;
+            }
+            else
+            {
+                error = 1;
+            }
+            iteration++;
+            itersBetweenUpdate++;
+        } while (iteration < iterations && error > eps);
 #ifdef NVPROF_
-    nvtxRangePop();
+        nvtxRangePop();
 #endif
 
-    // Последнее вычисление ошибки (Т.к был добавлен itersBetweenUpdate)
-    #pragma acc parallel loop collapse(2) present(Fnew[:size_sq], F[:size_sq], error) reduction(max:error) async
-    for (int x = 1; x < size - 1; x++)
-    {
-        for (int y = 1; y < size - 1; y++)
+        // Последнее вычисление ошибки (Т.к был добавлен itersBetweenUpdate)
+        #pragma acc parallel loop collapse(2) present(Fnew[:size_sq], F[:size_sq], error) reduction(max:error) async
+        for (int x = 1; x < size - 1; x++)
         {
-            error = fmax(error, fabs(at(Fnew, x, y) - at(F, x, y)));
+            for (int y = 1; y < size - 1; y++)
+            {
+                error = fmax(error, fabs(at(Fnew, x, y) - at(F, x, y)));
+            }
         }
+        #pragma acc update self(error) wait
     }
-    #pragma acc update self(error)
-    #pragma acc exit data delete (Fnew[:size_sq]) copyout(F[:size_sq], error)
+    #pragma acc data copyout(F[:size_sq], error)
+
 
     double end = omp_get_wtime();
     std::cout << "Time: " << end - start << " s" << std::endl;
     std::cout << "Iterations: " << iteration << std::endl;
     std::cout << "Error: " << error << std::endl;
-    if (showResult) saveMatrix(ArrF.get(), size, "matrix.txt");
+    if (showResult) saveMatrix(F, size, "matrix.txt");
 
     return 0;
 }
+
+
+
+// kernels - идентифицирует область кода которую можно распараллелить, 
+// но полагается на возможности автоматического распараллеливания компилятора, 
+// чтобы проанализировать область, определить, какие циклы безопасно распараллеливать
+
+// parallel - идентифицирует область кода, которую нужно расспараллелить,
+// также программист заявляет, что данный цикл безопасен для распараллеливания
+// а дальше компилятор сам определяет как ему расспараллелить циклы
+
+// collapse - сворачивает несколько вложенных циклов в один
+
+// reduction - создает частные переменные для каждой итерации, а потом сводит их к один конечный результат
+
+// present - Проверяет что перечисленные переменные уже присутствуют на устройстве, 
+// поэтому никаких дополнительных действий предпринимать не нужно
+

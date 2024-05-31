@@ -1,7 +1,7 @@
-GPU = -acc=gpu -D OPENACC__ -D NVPROF_
+GPU = -acc=gpu -D NVPROF_
 MULT = -acc=multicore 
 CORE = -acc=host
-ADD = -lboost_program_options -Minfo=all
+ADD = -lboost_program_options
 PGC = pgc++ -fast -O2
 
 all: core mult gpu
