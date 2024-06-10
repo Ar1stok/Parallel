@@ -105,6 +105,7 @@ __global__ void iterate(double* matrix, double* lastMatrix, int size) {
     int j = blockIdx.x * blockDim.x + threadIdx.x;
     int i = blockIdx.y * blockDim.y + threadIdx.y;
 
+    // Exclude values on the edges
     if (j == 0 || i == 0 || i >= size - 1 || j >= size - 1) return;
 
     at(matrix, i, j) = 0.25 * (at(lastMatrix, i, j + 1) + at(lastMatrix, i, j - 1) +
@@ -142,9 +143,7 @@ int main(int argc, char const *argv[]) {
         ("size", po::value<int>()->default_value(10),"Matrix size")
         ("iterations", po::value<int>()->default_value(1000000),"Max count of iteration")
         ("show", po::value<bool>()->default_value(false),"Show ResMatrix")
-        ("init", po::value<bool>()->default_value(false),"Use mean value during init")
-        ("help", "Show all all command")
-    ;
+        ("help", "Show all all command");
 
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -159,13 +158,11 @@ int main(int argc, char const *argv[]) {
     int size = vm["size"].as<int>();
     int iterations = vm["iterations"].as<int>();
     bool showResult = vm["show"].as<bool>();
-    bool initMean = vm["init"].as<bool>();
 
     std::cout << "Current settings:" << std::endl;
     std::cout << "\tEPS: " << eps << std::endl;
     std::cout << "\tMax iteration: " << iterations << std::endl;
     std::cout << "\tSize: " << size << 'x' << size << std::endl;
-    std::cout << "\tMean Value: " << initMean << std::endl;
 
     double error = 1.0;
     int iter = 0;
@@ -216,6 +213,7 @@ int main(int argc, char const *argv[]) {
     while (iter < iterations && error > eps) {
         if (!graphCreated) 
         {
+            // Start capturing the graph
             cudaStreamBeginCapture(*stream, cudaStreamCaptureModeGlobal);
 
             for (int i = 0; i < 999; i++) {
@@ -226,13 +224,17 @@ int main(int argc, char const *argv[]) {
             iterate<<<gridDim, blockDim, 0, *stream>>>(A_link, Anew_link, size);
             compute_error<32><<<gridDim, blockDim, 0, *stream>>>(A_link, Anew_link, errors_link, size);
 
+            // End capturing the graph
             cudaStreamEndCapture(*stream, graph.get());
+            
+            // Creates an executable graph from a graph
             cudaGraphInstantiate(graphExec.get(), *graph, nullptr, nullptr, 0);
 
             graphCreated = true;
         } 
         else 
         {
+            // Launch graph while err <= eps
             cudaGraphLaunch(*graphExec, *stream);
             cudaStreamSynchronize(*stream);
 
@@ -251,7 +253,7 @@ int main(int argc, char const *argv[]) {
     std::cout << "Time: " << elapsed.count() << " s\n";
     std::cout << "Error: " << error << "\n";
 
-    saveMatrix(A.arr.data(), size, "result_matrix.txt");
+    if(showResult) saveMatrix(A.arr.data(), size, "result_matrix.txt");
 
     return 0;
 }
