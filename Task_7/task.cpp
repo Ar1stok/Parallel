@@ -186,9 +186,17 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-// cublasIdamax - https://scikit-cuda.readthedocs.io/en/latest/generated/skcuda.cublas.cublasIdamax.html#skcuda.cublas.cublasIdamax
-// cublasDaxpy - https://scikit-cuda.readthedocs.io/en/latest/generated/skcuda.cublas.cublasDaxpy.html#skcuda.cublas.cublasDaxpy
-// cublasDcopy - https://scikit-cuda.readthedocs.io/en/latest/generated/skcuda.cublas.cublasDcopy.html#skcuda.cublas.cublasDcopy
+// cublasStatus_t cublasIdamax(cublasHandle_t handle, int n,
+//                             const double *x, int incx, int *result)
+// cublasStatus_t cublasDaxpy(cublasHandle_t handle, int 
+//                            const double          *alpha,
+//                            const double          *x, int incx,
+//                            double                *y, int incy)
+// cublasStatus_t cublasDcopy(cublasHandle_t handle, int n,
+//                            const double          *x, int incx,
+//                            double                *y, int incy)
 
-// acc host_data use_device - указывает компилятору использовать адрес устройства 
-// любой переменной или массива в var-списке в коде внутри конструкции
+// acc host_data - делает адрес устройства доступным на хосте
+// acc host_data use_device - когда мы используем массивы или переменные var-списка
+// перечисленные в use_device, в области host_data генереруется код для использования
+// копий массивов/переменных на устройстве, а не на хосте
